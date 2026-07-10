@@ -14,6 +14,7 @@ import (
 
 	"github.com/damakalshchikov/test-task-junior-golang-developer/internal/config"
 	"github.com/damakalshchikov/test-task-junior-golang-developer/internal/logger"
+	"github.com/damakalshchikov/test-task-junior-golang-developer/internal/storage/postgres"
 )
 
 func main() {
@@ -25,6 +26,22 @@ func main() {
 
 	log := logger.New(cfg.Env)
 	log.Info("starting subscriptions service", "env", cfg.Env, "port", cfg.HTTP.Port)
+
+	if err := postgres.RunMigrations(cfg.DB.MigrationsPath, cfg.DB.DSN(postgres.MigrateScheme)); err != nil {
+		log.Error("failed to run migrations", "error", err)
+		os.Exit(1)
+	}
+
+	log.Info("migrations applied")
+
+	pool, err := postgres.New(context.Background(), cfg.DB.DSN("postgres"))
+	if err != nil {
+		log.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	log.Info("connected to database", "host", cfg.DB.Host, "database", cfg.DB.Name)
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
