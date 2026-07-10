@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -28,6 +29,18 @@ type DBConfig struct {
 	Name           string `env:"DB_NAME" env-default:"subscriptions"`
 	SSLMode        string `env:"DB_SSLMODE" env-default:"disable"`
 	MigrationsPath string `env:"MIGRATIONS_PATH" env-default:"migrations"`
+}
+
+func (db DBConfig) DSN(scheme string) string {
+	u := url.URL{
+		Scheme:   scheme,
+		User:     url.UserPassword(db.User, db.Password),
+		Host:     db.Host + ":" + db.Port,
+		Path:     db.Name,
+		RawQuery: "sslmode=" + db.SSLMode,
+	}
+
+	return u.String()
 }
 
 func Load() (*Config, error) {
