@@ -21,6 +21,15 @@ type SubscriptionStorage interface {
 	List(ctx context.Context, filter storage.ListFilter) ([]models.Subscription, error)
 	Update(ctx context.Context, sub *models.Subscription) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	TotalCost(ctx context.Context, filter storage.SummaryFilter) (int, error)
+}
+
+type summaryResponse struct {
+	From        string     `json:"from"`
+	To          string     `json:"to"`
+	UserID      *uuid.UUID `json:"user_id,omitempty"`
+	ServiceName *string    `json:"service_name,omitempty"`
+	TotalCost   int        `json:"total_cost"`
 }
 
 type SubscriptionHandler struct {
@@ -156,6 +165,59 @@ func (h *SubscriptionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	h.log.Info("subscription deleted", "id", id)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *SubscriptionHandler) Summary(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	from, err := models.ParseMonthYear(query.Get("from"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "from is required, format MM-YYYY")
+		return
+	}
+
+	to, err := models.ParseMonthYear(query.Get("to"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "to is required, format MM-YYYY")
+		return
+	}
+
+	if to.Before(from.Time) {
+		writeError(w, http.StatusBadRequest, "to must not be before from")
+		return
+	}
+
+	filter := storage.SummaryFilter{From: from.Time, To: to.Time}
+
+	if value := query.Get("user_id"); value != "" {
+		id, err := uuid.Parse(value)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "user_id must be a valid UUID")
+			return
+		}
+		filter.UserID = &id
+	}
+
+	if value := query.Get("service_name"); value != "" {
+		filter.ServiceName = &value
+	}
+
+	total, err := h.storage.TotalCost(r.Context(), filter)
+	if err != nil {
+		h.serverError(w, r, "sum subscriptions cost", err)
+		return
+	}
+
+	h.log.Info("subscriptions cost calculated",
+		"from", query.Get("from"), "to", query.Get("to"), "total_cost", total)
+
+	writeJSON(w, http.StatusOK, summaryResponse{
+		From:        query.Get("from"),
+		To:          query.Get("to"),
+		UserID:      filter.UserID,
+		ServiceName: filter.ServiceName,
+		TotalCost:   total,
+	})
 }
 
 func (h *SubscriptionHandler) decodeRequest(w http.ResponseWriter, r *http.Request) (models.SubscriptionRequest, bool) {
