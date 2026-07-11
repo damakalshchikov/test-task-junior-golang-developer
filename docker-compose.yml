@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    image: test-task-effective-mobile
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+    ports:
+      - "${HTTP_PORT}:${HTTP_PORT}"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
