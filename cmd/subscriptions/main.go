@@ -9,9 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-
+	"github.com/damakalshchikov/test-task-junior-golang-developer/internal/api"
 	"github.com/damakalshchikov/test-task-junior-golang-developer/internal/config"
 	"github.com/damakalshchikov/test-task-junior-golang-developer/internal/logger"
 	"github.com/damakalshchikov/test-task-junior-golang-developer/internal/storage/postgres"
@@ -43,13 +41,8 @@ func main() {
 
 	log.Info("connected to database", "host", cfg.DB.Host, "database", cfg.DB.Name)
 
-	router := chi.NewRouter()
-	router.Use(middleware.RequestID)
-	router.Use(middleware.Recoverer)
-
-	router.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+	subscriptions := postgres.NewSubscriptionStorage(pool)
+	router := api.NewRouter(log, subscriptions)
 
 	server := &http.Server{
 		Addr:         ":" + cfg.HTTP.Port,
