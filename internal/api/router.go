@@ -21,6 +21,9 @@ func NewRouter(log *slog.Logger, subscriptions SubscriptionStorage) http.Handler
 		w.WriteHeader(http.StatusOK)
 	})
 
+	router.Get("/swagger", swaggerUI)
+	router.Get("/swagger/openapi.yaml", swaggerSpec)
+
 	router.Route("/subscriptions", func(r chi.Router) {
 		r.Post("/", handler.Create)
 		r.Get("/", handler.List)
