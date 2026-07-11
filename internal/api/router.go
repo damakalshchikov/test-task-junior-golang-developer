@@ -24,6 +24,7 @@ func NewRouter(log *slog.Logger, subscriptions SubscriptionStorage) http.Handler
 	router.Route("/subscriptions", func(r chi.Router) {
 		r.Post("/", handler.Create)
 		r.Get("/", handler.List)
+		r.Get("/summary", handler.Summary)
 		r.Get("/{id}", handler.GetByID)
 		r.Put("/{id}", handler.Update)
 		r.Delete("/{id}", handler.Delete)
