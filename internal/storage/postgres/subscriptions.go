@@ -137,6 +137,38 @@ func (s *SubscriptionStorage) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+func (s *SubscriptionStorage) TotalCost(ctx context.Context, filter storage.SummaryFilter) (int, error) {
+	query := `
+		SELECT COALESCE(SUM(price * (
+			(EXTRACT(YEAR FROM LEAST(COALESCE(end_date, $2::date), $2::date)) -
+			 EXTRACT(YEAR FROM GREATEST(start_date, $1::date))) * 12 +
+			EXTRACT(MONTH FROM LEAST(COALESCE(end_date, $2::date), $2::date)) -
+			EXTRACT(MONTH FROM GREATEST(start_date, $1::date)) + 1
+		)), 0)::bigint
+		FROM subscriptions
+		WHERE start_date <= $2 AND (end_date IS NULL OR end_date >= $1)`
+
+	args := []any{filter.From, filter.To}
+
+	if filter.UserID != nil {
+		args = append(args, *filter.UserID)
+		query += fmt.Sprintf(" AND user_id = $%d", len(args))
+	}
+
+	if filter.ServiceName != nil {
+		args = append(args, *filter.ServiceName)
+		query += fmt.Sprintf(" AND service_name = $%d", len(args))
+	}
+
+	var total int64
+
+	if err := s.pool.QueryRow(ctx, query, args...).Scan(&total); err != nil {
+		return 0, fmt.Errorf("sum subscriptions cost: %w", err)
+	}
+
+	return int(total), nil
+}
+
 func endDateArg(endDate *models.MonthYear) *time.Time {
 	if endDate == nil {
 		return nil
