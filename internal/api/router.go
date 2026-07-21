@@ -7,6 +7,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/damakalshchikov/test-task-junior-golang-developer/internal/models"
 )
 
 func NewRouter(log *slog.Logger, subscriptions SubscriptionStorage) http.Handler {
@@ -25,11 +27,11 @@ func NewRouter(log *slog.Logger, subscriptions SubscriptionStorage) http.Handler
 	router.Get("/swagger/openapi.yaml", swaggerSpec)
 
 	router.Route("/subscriptions", func(r chi.Router) {
-		r.Post("/", handler.Create)
+		r.With(validateBody[models.SubscriptionRequest]).Post("/", handler.Create)
 		r.Get("/", handler.List)
 		r.Get("/summary", handler.Summary)
 		r.Get("/{id}", handler.GetByID)
-		r.Put("/{id}", handler.Update)
+		r.With(validateBody[models.SubscriptionRequest]).Put("/{id}", handler.Update)
 		r.Delete("/{id}", handler.Delete)
 	})
 
