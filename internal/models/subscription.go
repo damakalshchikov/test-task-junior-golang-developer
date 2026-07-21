@@ -1,7 +1,6 @@
 package models
 
 import (
-	"errors"
 	"strings"
 	"time"
 
@@ -20,39 +19,11 @@ type Subscription struct {
 }
 
 type SubscriptionRequest struct {
-	ServiceName string     `json:"service_name"`
-	Price       *int       `json:"price"`
-	UserID      uuid.UUID  `json:"user_id"`
-	StartDate   MonthYear  `json:"start_date"`
-	EndDate     *MonthYear `json:"end_date,omitempty"`
-}
-
-func (r SubscriptionRequest) Validate() error {
-	if strings.TrimSpace(r.ServiceName) == "" {
-		return errors.New("service_name is required")
-	}
-
-	if r.Price == nil {
-		return errors.New("price is required")
-	}
-
-	if *r.Price < 0 {
-		return errors.New("price must be non-negative")
-	}
-
-	if r.UserID == uuid.Nil {
-		return errors.New("user_id is required")
-	}
-
-	if r.StartDate.IsZero() {
-		return errors.New("start_date is required")
-	}
-
-	if r.EndDate != nil && r.EndDate.Before(r.StartDate.Time) {
-		return errors.New("end_date must not be before start_date")
-	}
-
-	return nil
+	ServiceName string     `json:"service_name" validate:"required"`
+	Price       *int       `json:"price" validate:"required,min=0"`
+	UserID      uuid.UUID  `json:"user_id" validate:"required"`
+	StartDate   MonthYear  `json:"start_date" validate:"required"`
+	EndDate     *MonthYear `json:"end_date,omitempty" validate:"omitempty,gtefield=StartDate"`
 }
 
 func (r SubscriptionRequest) ToSubscription() *Subscription {

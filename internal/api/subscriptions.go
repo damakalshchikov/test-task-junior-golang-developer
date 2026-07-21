@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -42,10 +41,7 @@ func NewSubscriptionHandler(log *slog.Logger, storage SubscriptionStorage) *Subs
 }
 
 func (h *SubscriptionHandler) Create(w http.ResponseWriter, r *http.Request) {
-	req, ok := h.decodeRequest(w, r)
-	if !ok {
-		return
-	}
+	req := bodyFrom[models.SubscriptionRequest](r.Context())
 
 	sub := req.ToSubscription()
 
@@ -127,10 +123,7 @@ func (h *SubscriptionHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req, ok := h.decodeRequest(w, r)
-	if !ok {
-		return
-	}
+	req := bodyFrom[models.SubscriptionRequest](r.Context())
 
 	sub := req.ToSubscription()
 	sub.ID = id
@@ -218,22 +211,6 @@ func (h *SubscriptionHandler) Summary(w http.ResponseWriter, r *http.Request) {
 		ServiceName: filter.ServiceName,
 		TotalCost:   total,
 	})
-}
-
-func (h *SubscriptionHandler) decodeRequest(w http.ResponseWriter, r *http.Request) (models.SubscriptionRequest, bool) {
-	var req models.SubscriptionRequest
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid request body: "+err.Error())
-		return req, false
-	}
-
-	if err := req.Validate(); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return req, false
-	}
-
-	return req, true
 }
 
 func (h *SubscriptionHandler) parseID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
